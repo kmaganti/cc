@@ -14,48 +14,55 @@ type Product = {
 
 const products: Product[] = [
   {
-    id: "trainer-pro",
-    name: "Velocity Trainer Pro",
-    category: "Footwear",
-    price: 118,
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-    accent: "#f35f2d",
-    description: "Responsive court and gym shoe with a stable heel cage.",
+    id: "signature-bat",
+    name: "Cricket Central Signature Bat",
+    category: "Bats",
+    price: 149,
+    image: "/cricket-central-logo.png",
+    accent: "#c91524",
+    description: "Match-ready willow profile with Cricket Central branding.",
   },
   {
-    id: "flex-jersey",
-    name: "Flex Match Jersey",
+    id: "club-jersey",
+    name: "Central Match Jersey",
     category: "Apparel",
-    price: 54,
-    image:
-      "https://images.unsplash.com/photo-1577223625816-7546f13df25d?auto=format&fit=crop&w=900&q=80",
-    accent: "#0c7a75",
-    description: "Breathable stretch knit for teams, clubs, and training days.",
+    price: 48,
+    image: "/cricket-central-logo.png",
+    accent: "#0d2445",
+    description: "Lightweight cricket jersey with navy, white, and red trim.",
   },
   {
-    id: "pulse-pack",
-    name: "Pulse Training Pack",
-    category: "Bags",
-    price: 76,
+    id: "club-cap",
+    name: "Central Club Cap",
+    category: "Caps",
+    price: 26,
+    image: "/cricket-central-logo.png",
+    accent: "#10294c",
+    description: "Structured navy cap with embroidered Cricket Central mark.",
+  },
+  {
+    id: "training-kit",
+    name: "Starter Training Kit",
+    category: "Kits",
+    price: 86,
     image:
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=900&q=80",
     accent: "#3454d1",
-    description: "Wet pocket, shoe tunnel, bottle sleeve, and laptop divider.",
+    description: "Practice ball, grip tape, training cones, and kit bag.",
   },
   {
-    id: "grip-gloves",
-    name: "Gripforce Gloves",
+    id: "batting-gloves",
+    name: "Pro Batting Gloves",
     category: "Accessories",
-    price: 32,
+    price: 42,
     image:
-      "https://images.unsplash.com/photo-1517438322307-e67111335449?auto=format&fit=crop&w=900&q=80",
-    accent: "#d19b24",
-    description: "Light support with silicone grip and adjustable wrist wrap.",
+      "https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?auto=format&fit=crop&w=900&q=80",
+    accent: "#d3a036",
+    description: "Flexible protection and confident grip for long innings.",
   },
 ];
 
-const categories = ["All", "Footwear", "Apparel", "Bags", "Accessories"];
+const categories = ["All", "Bats", "Apparel", "Caps", "Kits", "Accessories"];
 
 type Cart = Record<string, number>;
 
@@ -148,9 +155,9 @@ export default function Home() {
     <main>
       <section className="hero">
         <nav className="nav" aria-label="Main navigation">
-          <a className="brand" href="#top" aria-label="Stride Supply home">
-            <span>SS</span>
-            Stride Supply
+          <a className="brand" href="#top" aria-label="Cricket Central home">
+            <span className="brand-logo" aria-hidden="true" />
+            Cricket Central
           </a>
           <div className="nav-links">
             <a href="#gear">Gear</a>
@@ -161,11 +168,11 @@ export default function Home() {
 
         <div className="hero-grid" id="top">
           <div className="hero-copy">
-            <p className="eyebrow">Team-ready sports gear</p>
-            <h1>Order premium training essentials without the retail markup.</h1>
+            <p className="eyebrow">Cricket gear and teamwear</p>
+            <h1>Order Cricket Central bats, jerseys, caps, and training kits.</h1>
             <p>
-              Choose the gear you need, send one clean order request, and get a
-              confirmation from the store team by email.
+              Choose your cricket gear, send one clean order request, and get a
+              confirmation from the Cricket Central team by email.
             </p>
             <div className="hero-actions">
               <a className="primary-button" href="#gear">
@@ -177,10 +184,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hero-media" aria-label="Featured sports gear">
+          <div className="hero-media" aria-label="Featured Cricket Central gear">
             <img
-              src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=1200&q=82"
-              alt="Athletic shoes, ball, and training gear on a court"
+              src="/cricket-central-logo.png"
+              alt="Cricket Central branded cap and jersey"
             />
             <div className="inventory-card">
               <strong>48h</strong>
@@ -193,17 +200,17 @@ export default function Home() {
       <section className="trust-strip" aria-label="Store advantages">
         <span>Club packs</span>
         <span>Bulk quotes</span>
-        <span>Local delivery</span>
+        <span>Custom teamwear</span>
         <span>Email confirmations</span>
       </section>
 
       <section className="section" id="gear">
         <div className="section-heading">
           <p className="eyebrow">Catalog</p>
-          <h2>Popular gear</h2>
+          <h2>Popular cricket gear</h2>
           <p>
-            Start with a focused catalog that is simple to maintain. Add more
-            products by editing one product list.
+            Cricket Central can take quick orders for bats, jerseys, caps,
+            training kits, and accessories.
           </p>
         </div>
 
@@ -337,12 +344,12 @@ export default function Home() {
       <section className="section operations" id="contact">
         <div>
           <p className="eyebrow">Easy operations</p>
-          <h2>Low-cost stack selected for you</h2>
+          <h2>Low-cost stack selected for Cricket Central</h2>
         </div>
         <div className="ops-grid">
           <article>
             <h3>Frontend</h3>
-            <p>React page with a small editable product list.</p>
+            <p>React page with a small editable cricket product list.</p>
           </article>
           <article>
             <h3>Orders</h3>

@@ -13,13 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Stride Supply | Sports Gear Orders",
+  title: "Cricket Central | Cricket Gear Orders",
   description:
-    "Order training shoes, apparel, bags, and accessories from Stride Supply.",
+    "Order Cricket Central bats, apparel, caps, kits, and cricket accessories.",
   openGraph: {
-    title: "Stride Supply",
-    description: "Sports gear orders for teams, clubs, and everyday training.",
-    images: ["/og.png"],
+    title: "Cricket Central",
+    description: "Cricket gear orders for players, teams, and clubs.",
+    images: ["/cricket-central-logo.png"],
   },
   icons: {
     icon: "/favicon.svg",

@@ -6,10 +6,10 @@
   --muted: #64716c;
   --panel: #fffdfa;
   --line: #dfd6ca;
-  --green: #0b5d4f;
-  --green-dark: #073f37;
-  --orange: #e9632e;
-  --yellow: #f1b63f;
+  --green: #10294c;
+  --green-dark: #07172d;
+  --orange: #c91524;
+  --yellow: #f1f4f8;
   --blue: #3454d1;
 }
 
@@ -67,8 +67,8 @@ img {
   min-height: 92vh;
   padding: 22px clamp(18px, 4vw, 56px) 48px;
   background:
-    linear-gradient(120deg, rgba(7, 63, 55, 0.92), rgba(11, 93, 79, 0.72)),
-    url("https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1800&q=82")
+    linear-gradient(120deg, rgba(7, 23, 45, 0.95), rgba(16, 41, 76, 0.76)),
+    url("https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1800&q=82")
       center / cover;
   color: #fffdfa;
 }
@@ -90,14 +90,16 @@ img {
   letter-spacing: 0;
 }
 
-.brand span {
+.brand-logo {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 8px;
-  background: var(--yellow);
-  color: var(--green-dark);
+  background:
+    url("/cricket-central-logo.png") 25% 38% / 190% auto no-repeat,
+    #fffdfa;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
 }
 
 .nav-links {
@@ -224,6 +226,7 @@ h3 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 34% 50%;
 }
 
 .inventory-card {
@@ -333,6 +336,7 @@ h3 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 38% 48%;
   mix-blend-mode: multiply;
 }
 

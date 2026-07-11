@@ -108,7 +108,7 @@ function buildEmail(order: ValidOrder) {
     .join("\n");
 
   const text = [
-    "New Stride Supply order request",
+    "New Cricket Central order request",
     "",
     `Customer: ${order.customer.name}`,
     `Email: ${order.customer.email}`,
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
   }
 
   const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.ORDER_FROM_EMAIL || "Stride Supply <orders@resend.dev>";
+  const fromEmail = process.env.ORDER_FROM_EMAIL || "Cricket Central <orders@resend.dev>";
   const email = buildEmail(validated.order);
 
   if (!resendApiKey) {
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
       from: fromEmail,
       to: storeEmail,
       reply_to: validated.order.customer.email,
-      subject: `New sports gear order from ${validated.order.customer.name}`,
+      subject: `New Cricket Central order from ${validated.order.customer.name}`,
       text: email.text,
       html: email.html,
     }),
