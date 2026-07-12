@@ -19,6 +19,9 @@ export type Customer = {
   address: string;
   club: string;
   createdAt: string;
+  passwordHash?: string;
+  resetToken?: string;
+  resetExpiresAt?: string;
 };
 
 export type OrderItem = {

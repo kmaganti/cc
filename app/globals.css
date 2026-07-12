@@ -653,7 +653,9 @@ h3 {
 
 .console-grid,
 .tracking-shell,
-.admin-layout {
+.admin-layout,
+.auth-shell,
+.account-dashboard {
   display: grid;
   gap: 18px;
   max-width: 1180px;
@@ -672,6 +674,56 @@ h3 {
 .admin-layout {
   grid-template-columns: minmax(220px, 0.28fr) minmax(300px, 0.38fr) minmax(280px, 0.34fr);
   align-items: start;
+}
+
+.auth-shell {
+  grid-template-columns: minmax(220px, 0.3fr) minmax(320px, 0.7fr);
+  align-items: start;
+}
+
+.account-dashboard {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.account-summary {
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.auth-tabs {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdfa;
+}
+
+.auth-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+  font-weight: 900;
+}
+
+.auth-tabs .active {
+  background: var(--green);
+  color: #fffdfa;
+}
+
+.auth-card {
+  max-width: 640px;
+}
+
+.dashboard-message {
+  grid-column: 1 / -1;
 }
 
 .management-card {
@@ -830,7 +882,10 @@ h3 {
   .product-detail,
   .console-grid,
   .tracking-shell,
-  .admin-layout {
+  .admin-layout,
+  .auth-shell,
+  .account-dashboard,
+  .account-summary {
     grid-template-columns: 1fr;
   }
 

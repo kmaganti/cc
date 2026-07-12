@@ -21,6 +21,9 @@ export const customers = sqliteTable("customers", {
   address: text("address").notNull(),
   club: text("club").notNull(),
   createdAt: text("createdAt").notNull(),
+  passwordHash: text("passwordHash"),
+  resetToken: text("resetToken"),
+  resetExpiresAt: text("resetExpiresAt"),
 });
 
 export const orders = sqliteTable("orders", {

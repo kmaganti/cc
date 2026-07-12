@@ -18,7 +18,7 @@ async function ensureTables() {
       "CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, price INTEGER NOT NULL, image TEXT NOT NULL, accent TEXT NOT NULL, description TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, featured INTEGER NOT NULL)"
     ),
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, phone TEXT NOT NULL, address TEXT NOT NULL, club TEXT NOT NULL, createdAt TEXT NOT NULL)"
+      "CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, phone TEXT NOT NULL, address TEXT NOT NULL, club TEXT NOT NULL, createdAt TEXT NOT NULL, passwordHash TEXT, resetToken TEXT, resetExpiresAt TEXT)"
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, customerId TEXT NOT NULL, customerName TEXT NOT NULL, customerEmail TEXT NOT NULL, status TEXT NOT NULL, trackingNumber TEXT NOT NULL, carrier TEXT NOT NULL, eta TEXT NOT NULL, total INTEGER NOT NULL, createdAt TEXT NOT NULL)"
@@ -27,6 +27,10 @@ async function ensureTables() {
       "CREATE TABLE IF NOT EXISTS order_items (id TEXT PRIMARY KEY, orderId TEXT NOT NULL, productId TEXT NOT NULL, productName TEXT NOT NULL, quantity INTEGER NOT NULL, price INTEGER NOT NULL)"
     ),
   ]);
+
+  await addColumnIfMissing("customers", "passwordHash", "TEXT");
+  await addColumnIfMissing("customers", "resetToken", "TEXT");
+  await addColumnIfMissing("customers", "resetExpiresAt", "TEXT");
 
   const productCount = await db
     .prepare("SELECT COUNT(*) as count FROM products")
@@ -123,6 +127,17 @@ async function ensureTables() {
   }
 }
 
+async function addColumnIfMissing(table: string, column: string, type: string) {
+  try {
+    await getDatabase().prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`).run();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.toLowerCase().includes("duplicate column")) {
+      throw error;
+    }
+  }
+}
+
 function normalizeProduct(row: ProductRow): Product {
   return { ...row, featured: Boolean(row.featured) };
 }
@@ -178,7 +193,7 @@ export async function saveCustomer(customer: Customer) {
   await ensureTables();
   await getDatabase()
     .prepare(
-      "INSERT INTO customers (id, name, email, phone, address, club, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, phone = excluded.phone, address = excluded.address, club = excluded.club"
+      "INSERT INTO customers (id, name, email, phone, address, club, createdAt, passwordHash, resetToken, resetExpiresAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, phone = excluded.phone, address = excluded.address, club = excluded.club, passwordHash = COALESCE(excluded.passwordHash, customers.passwordHash), resetToken = excluded.resetToken, resetExpiresAt = excluded.resetExpiresAt"
     )
     .bind(
       customer.id,
@@ -187,10 +202,67 @@ export async function saveCustomer(customer: Customer) {
       customer.phone,
       customer.address,
       customer.club,
-      customer.createdAt
+      customer.createdAt,
+      customer.passwordHash || null,
+      customer.resetToken || null,
+      customer.resetExpiresAt || null
     )
     .run();
   return customer;
+}
+
+export async function getCustomerByEmail(email: string) {
+  await ensureTables();
+  return getDatabase()
+    .prepare("SELECT * FROM customers WHERE lower(email) = lower(?)")
+    .bind(email)
+    .first<Customer>();
+}
+
+export async function getCustomerById(id: string) {
+  await ensureTables();
+  return getDatabase()
+    .prepare("SELECT * FROM customers WHERE id = ?")
+    .bind(id)
+    .first<Customer>();
+}
+
+export async function updateCustomerProfile(
+  id: string,
+  profile: Pick<Customer, "name" | "phone" | "address" | "club">
+) {
+  await ensureTables();
+  await getDatabase()
+    .prepare("UPDATE customers SET name = ?, phone = ?, address = ?, club = ? WHERE id = ?")
+    .bind(profile.name, profile.phone, profile.address, profile.club, id)
+    .run();
+  return getCustomerById(id);
+}
+
+export async function updateCustomerPassword(id: string, passwordHash: string) {
+  await ensureTables();
+  await getDatabase()
+    .prepare("UPDATE customers SET passwordHash = ?, resetToken = NULL, resetExpiresAt = NULL WHERE id = ?")
+    .bind(passwordHash, id)
+    .run();
+  return getCustomerById(id);
+}
+
+export async function saveResetToken(email: string, resetToken: string, resetExpiresAt: string) {
+  await ensureTables();
+  await getDatabase()
+    .prepare("UPDATE customers SET resetToken = ?, resetExpiresAt = ? WHERE lower(email) = lower(?)")
+    .bind(resetToken, resetExpiresAt, email)
+    .run();
+  return getCustomerByEmail(email);
+}
+
+export async function getCustomerByResetToken(resetToken: string) {
+  await ensureTables();
+  return getDatabase()
+    .prepare("SELECT * FROM customers WHERE resetToken = ?")
+    .bind(resetToken)
+    .first<Customer>();
 }
 
 async function itemsForOrders(orderIds: string[]) {
