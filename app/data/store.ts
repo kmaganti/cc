@@ -45,6 +45,13 @@ export type Order = {
   items: OrderItem[];
 };
 
+export type AdminUser = {
+  id: string;
+  username: string;
+  passwordHash?: string;
+  createdAt: string;
+};
+
 export const categories = ["All", "Bats", "Apparel", "Caps", "Kits", "Accessories"];
 
 export const starterProducts: Product[] = [

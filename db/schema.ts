@@ -47,3 +47,10 @@ export const orderItems = sqliteTable("order_items", {
   quantity: integer("quantity").notNull(),
   price: integer("price").notNull(),
 });
+
+export const admins = sqliteTable("admins", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("passwordHash"),
+  createdAt: text("createdAt").notNull(),
+});

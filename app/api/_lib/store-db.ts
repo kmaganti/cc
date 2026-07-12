@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { starterOrders, starterProducts, type Customer, type Order, type OrderItem, type Product } from "../../data/store";
+import { starterOrders, starterProducts, type AdminUser, type Customer, type Order, type OrderItem, type Product } from "../../data/store";
 
 type ProductRow = Omit<Product, "featured"> & { featured: number };
 type OrderRow = Omit<Order, "items">;
@@ -25,6 +25,9 @@ async function ensureTables() {
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS order_items (id TEXT PRIMARY KEY, orderId TEXT NOT NULL, productId TEXT NOT NULL, productName TEXT NOT NULL, quantity INTEGER NOT NULL, price INTEGER NOT NULL)"
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS admins (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, passwordHash TEXT, createdAt TEXT NOT NULL)"
     ),
   ]);
 
@@ -125,6 +128,13 @@ async function ensureTables() {
     ]);
     await db.batch(orderStatements);
   }
+
+  await db
+    .prepare(
+      "INSERT OR IGNORE INTO admins (id, username, passwordHash, createdAt) VALUES (?, ?, ?, ?)"
+    )
+    .bind("admin-1", "admin", null, "2026-07-12")
+    .run();
 }
 
 async function addColumnIfMissing(table: string, column: string, type: string) {
@@ -263,6 +273,23 @@ export async function getCustomerByResetToken(resetToken: string) {
     .prepare("SELECT * FROM customers WHERE resetToken = ?")
     .bind(resetToken)
     .first<Customer>();
+}
+
+export async function getAdminByUsername(username: string) {
+  await ensureTables();
+  return getDatabase()
+    .prepare("SELECT * FROM admins WHERE lower(username) = lower(?)")
+    .bind(username)
+    .first<AdminUser>();
+}
+
+export async function updateAdminPassword(username: string, passwordHash: string) {
+  await ensureTables();
+  await getDatabase()
+    .prepare("UPDATE admins SET passwordHash = ? WHERE lower(username) = lower(?)")
+    .bind(passwordHash, username)
+    .run();
+  return getAdminByUsername(username);
 }
 
 async function itemsForOrders(orderIds: string[]) {

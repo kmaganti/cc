@@ -1,6 +1,7 @@
 import type { Customer } from "../../data/store";
 
 const sessionCookieName = "cc_session";
+const adminSessionCookieName = "cc_admin_session";
 
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
@@ -94,13 +95,16 @@ export async function verifyPassword(password: string, storedHash?: string) {
   return timingSafeEqual(hashValue, bytesToBase64(new Uint8Array(bits)));
 }
 
+function secureCookieFlag(request: Request) {
+  return new URL(request.url).protocol === "https:" ? "; Secure" : "";
+}
+
 export async function createSessionCookie(customerId: string, request: Request) {
   const issuedAt = Date.now().toString();
   const payload = `${customerId}.${issuedAt}`;
   const signature = await hmac(payload);
   const token = `${payload}.${signature}`;
-  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-  return `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=604800`;
+  return `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly${secureCookieFlag(request)}; SameSite=Lax; Path=/; Max-Age=604800`;
 }
 
 export function clearSessionCookie() {
@@ -108,31 +112,51 @@ export function clearSessionCookie() {
 }
 
 export async function sessionCustomerId(request: Request) {
+  return signedCookieValue(request, sessionCookieName);
+}
+
+export async function createAdminSessionCookie(username: string, request: Request) {
+  const issuedAt = Date.now().toString();
+  const payload = `${username}.${issuedAt}`;
+  const signature = await hmac(payload);
+  const token = `${payload}.${signature}`;
+  return `${adminSessionCookieName}=${encodeURIComponent(token)}; HttpOnly${secureCookieFlag(request)}; SameSite=Lax; Path=/; Max-Age=28800`;
+}
+
+export function clearAdminSessionCookie() {
+  return `${adminSessionCookieName}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
+}
+
+export async function sessionAdminUsername(request: Request) {
+  return signedCookieValue(request, adminSessionCookieName);
+}
+
+async function signedCookieValue(request: Request, cookieName: string) {
   const cookieHeader = request.headers.get("cookie") || "";
   const cookie = cookieHeader
     .split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith(`${sessionCookieName}=`));
+    .find((part) => part.startsWith(`${cookieName}=`));
   if (!cookie) {
     return null;
   }
 
-  const token = decodeURIComponent(cookie.slice(sessionCookieName.length + 1));
+  const token = decodeURIComponent(cookie.slice(cookieName.length + 1));
   const parts = token.split(".");
   if (parts.length < 3) {
     return null;
   }
 
-  const customerId = parts[0];
+  const subject = parts[0];
   const issuedAt = parts[1];
   const signature = parts.slice(2).join(".");
-  const expected = await hmac(`${customerId}.${issuedAt}`);
+  const expected = await hmac(`${subject}.${issuedAt}`);
   const age = Date.now() - Number(issuedAt);
   if (!timingSafeEqual(signature, expected) || age > 7 * 24 * 60 * 60 * 1000) {
     return null;
   }
 
-  return customerId;
+  return subject;
 }
 
 export function publicCustomer(customer: Customer) {

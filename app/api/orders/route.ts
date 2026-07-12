@@ -1,4 +1,5 @@
 import { getOrder, listOrders, updateOrderStatus } from "../_lib/store-db";
+import { sessionAdminUsername } from "../_lib/auth";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -10,10 +11,16 @@ export async function GET(request: Request) {
       ? Response.json({ order })
       : Response.json({ message: "Order not found." }, { status: 404 });
   }
+  if (!email && !(await sessionAdminUsername(request))) {
+    return Response.json({ message: "Admin login required." }, { status: 401 });
+  }
   return Response.json({ orders: await listOrders(email) });
 }
 
 export async function PATCH(request: Request) {
+  if (!(await sessionAdminUsername(request))) {
+    return Response.json({ message: "Admin login required." }, { status: 401 });
+  }
   const payload = (await request.json()) as {
     id?: string;
     status?: "Quote sent" | "Confirmed" | "Packed" | "Shipped" | "Delivered";

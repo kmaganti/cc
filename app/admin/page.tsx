@@ -7,6 +7,7 @@ import { starterProducts, type Order, type Product } from "../data/store";
 const statuses = ["Quote sent", "Confirmed", "Packed", "Shipped", "Delivered"] as const;
 
 export default function AdminPage() {
+  const [admin, setAdmin] = useState<{ username: string } | null>(null);
   const [products, setProducts] = useState<Product[]>(starterProducts);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selected, setSelected] = useState<Product>(starterProducts[0]);
@@ -24,8 +25,42 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    void loadData();
+    fetch("/api/admin-auth/me")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { admin?: { username: string } } | null) => {
+        if (data?.admin) {
+          setAdmin(data.admin);
+          void loadData();
+        }
+      })
+      .catch(() => undefined);
   }, []);
+
+  async function loginAdmin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    const response = await fetch("/api/admin-auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget).entries())),
+    });
+    const data = (await response.json()) as {
+      admin?: { username: string };
+      message?: string;
+    };
+    setMessage(data.message || "");
+    if (response.ok && data.admin) {
+      setAdmin(data.admin);
+      await loadData();
+    }
+  }
+
+  async function logoutAdmin() {
+    await fetch("/api/admin-auth/logout", { method: "POST" });
+    setAdmin(null);
+    setOrders([]);
+    setProducts(starterProducts);
+  }
 
   async function saveInventory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,11 +99,38 @@ export default function AdminPage() {
         <StoreHeader />
         <div className="page-title">
           <p className="eyebrow">Admin console</p>
-          <h1>Manage inventory and order status</h1>
+          <h1>{admin ? "Manage inventory and order status" : "Admin login required"}</h1>
         </div>
       </section>
 
+      {!admin ? (
+        <section className="auth-shell">
+          <div className="management-card account-summary">
+            <div>
+              <p className="eyebrow">Default demo admin</p>
+              <h2>admin / admin</h2>
+              <p>Use this seeded account to manage inventory and order status.</p>
+            </div>
+          </div>
+          <form className="management-card auth-card" onSubmit={loginAdmin}>
+            <h2>Admin login</h2>
+            <label>Username<input name="username" required defaultValue="admin" /></label>
+            <label>Password<input name="password" type="password" required defaultValue="admin" /></label>
+            <button className="primary-button" type="submit">Login to admin</button>
+            {message ? <p className="form-status sent">{message}</p> : null}
+          </form>
+        </section>
+      ) : (
       <section className="admin-layout">
+        <div className="management-card account-summary">
+          <div>
+            <p className="eyebrow">Admin signed in</p>
+            <h2>{admin.username}</h2>
+          </div>
+          <button className="secondary-dark" type="button" onClick={logoutAdmin}>
+            Sign out
+          </button>
+        </div>
         <div className="management-card">
           <h2>Inventory</h2>
           <div className="record-list">
@@ -116,6 +178,7 @@ export default function AdminPage() {
           </div>
         </div>
       </section>
+      )}
     </main>
   );
 }
