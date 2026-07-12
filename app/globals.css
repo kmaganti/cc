@@ -672,7 +672,7 @@ h3 {
 }
 
 .admin-layout {
-  grid-template-columns: minmax(220px, 0.28fr) minmax(300px, 0.38fr) minmax(280px, 0.34fr);
+  grid-template-columns: minmax(220px, 0.28fr) minmax(340px, 0.4fr) minmax(280px, 0.32fr);
   align-items: start;
 }
 
@@ -871,6 +871,31 @@ h3 {
 
 .order-admin {
   max-height: 720px;
+  overflow: auto;
+}
+
+.mini-form,
+.cross-sell-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.mini-form {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+
+.cross-sell-picker {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 13px;
+  background: #fff;
+}
+
+.compact-list {
+  max-height: 220px;
   overflow: auto;
 }
 

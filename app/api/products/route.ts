@@ -1,8 +1,15 @@
-import { listProducts, saveProduct } from "../_lib/store-db";
+import { getProductWithCrossSells, listProducts, saveProduct } from "../_lib/store-db";
 import type { Product } from "../../data/store";
 import { sessionAdminUsername } from "../_lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const id = new URL(request.url).searchParams.get("id");
+  if (id) {
+    const detail = await getProductWithCrossSells(id);
+    return detail
+      ? Response.json(detail)
+      : Response.json({ message: "Product not found." }, { status: 404 });
+  }
   return Response.json({ products: await listProducts() });
 }
 

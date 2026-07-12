@@ -4,6 +4,7 @@ export const products = sqliteTable("products", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   category: text("category").notNull(),
+  groupId: text("groupId"),
   price: integer("price").notNull(),
   image: text("image").notNull(),
   accent: text("accent").notNull(),
@@ -11,6 +12,28 @@ export const products = sqliteTable("products", {
   stock: integer("stock").notNull(),
   status: text("status").notNull(),
   featured: integer("featured").notNull(),
+});
+
+export const categories = sqliteTable("categories", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  image: text("image").notNull(),
+  sortOrder: integer("sortOrder").notNull(),
+});
+
+export const productGroups = sqliteTable("product_groups", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  image: text("image").notNull(),
+  sortOrder: integer("sortOrder").notNull(),
+});
+
+export const productCrossSells = sqliteTable("product_cross_sells", {
+  id: text("id").primaryKey(),
+  productId: text("productId").notNull(),
+  relatedProductId: text("relatedProductId").notNull(),
 });
 
 export const customers = sqliteTable("customers", {

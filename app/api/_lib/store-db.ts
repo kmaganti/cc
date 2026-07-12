@@ -1,8 +1,9 @@
 import { env } from "cloudflare:workers";
-import { starterOrders, starterProducts, type AdminUser, type Customer, type Order, type OrderItem, type Product } from "../../data/store";
+import { starterCategories, starterGroups, starterOrders, starterProducts, type AdminUser, type Category, type Customer, type Order, type OrderItem, type Product, type ProductGroup } from "../../data/store";
 
 type ProductRow = Omit<Product, "featured"> & { featured: number };
 type OrderRow = Omit<Order, "items">;
+type CrossSellRow = { relatedProductId: string };
 
 function getDatabase() {
   if (!env.DB) {
@@ -15,7 +16,16 @@ async function ensureTables() {
   const db = getDatabase();
   await db.batch([
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, price INTEGER NOT NULL, image TEXT NOT NULL, accent TEXT NOT NULL, description TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, featured INTEGER NOT NULL)"
+      "CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, groupId TEXT, price INTEGER NOT NULL, image TEXT NOT NULL, accent TEXT NOT NULL, description TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, featured INTEGER NOT NULL)"
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, image TEXT NOT NULL, sortOrder INTEGER NOT NULL)"
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS product_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, image TEXT NOT NULL, sortOrder INTEGER NOT NULL)"
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS product_cross_sells (id TEXT PRIMARY KEY, productId TEXT NOT NULL, relatedProductId TEXT NOT NULL)"
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, phone TEXT NOT NULL, address TEXT NOT NULL, club TEXT NOT NULL, createdAt TEXT NOT NULL, passwordHash TEXT, resetToken TEXT, resetExpiresAt TEXT)"
@@ -31,9 +41,46 @@ async function ensureTables() {
     ),
   ]);
 
+  await addColumnIfMissing("products", "groupId", "TEXT");
   await addColumnIfMissing("customers", "passwordHash", "TEXT");
   await addColumnIfMissing("customers", "resetToken", "TEXT");
   await addColumnIfMissing("customers", "resetExpiresAt", "TEXT");
+
+  const categoryCount = await db
+    .prepare("SELECT COUNT(*) as count FROM categories")
+    .first<{ count: number }>();
+  if ((categoryCount?.count ?? 0) === 0) {
+    await db.batch(
+      starterCategories.map((category) =>
+        db
+          .prepare(
+            "INSERT INTO categories (id, name, description, image, sortOrder) VALUES (?, ?, ?, ?, ?)"
+          )
+          .bind(
+            category.id,
+            category.name,
+            category.description,
+            category.image,
+            category.sortOrder
+          )
+      )
+    );
+  }
+
+  const groupCount = await db
+    .prepare("SELECT COUNT(*) as count FROM product_groups")
+    .first<{ count: number }>();
+  if ((groupCount?.count ?? 0) === 0) {
+    await db.batch(
+      starterGroups.map((group) =>
+        db
+          .prepare(
+            "INSERT INTO product_groups (id, name, description, image, sortOrder) VALUES (?, ?, ?, ?, ?)"
+          )
+          .bind(group.id, group.name, group.description, group.image, group.sortOrder)
+      )
+    );
+  }
 
   const productCount = await db
     .prepare("SELECT COUNT(*) as count FROM products")
@@ -43,12 +90,13 @@ async function ensureTables() {
       starterProducts.map((product) =>
         db
           .prepare(
-            "INSERT INTO products (id, name, category, price, image, accent, description, stock, status, featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO products (id, name, category, groupId, price, image, accent, description, stock, status, featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
           .bind(
             product.id,
             product.name,
             product.category,
+            product.groupId || null,
             product.price,
             product.image,
             product.accent,
@@ -152,6 +200,14 @@ function normalizeProduct(row: ProductRow): Product {
   return { ...row, featured: Boolean(row.featured) };
 }
 
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export async function listProducts() {
   await ensureTables();
   const rows = await getDatabase()
@@ -169,16 +225,43 @@ export async function getProduct(id: string) {
   return row ? normalizeProduct(row) : null;
 }
 
+export async function getProductWithCrossSells(id: string) {
+  const product = await getProduct(id);
+  if (!product) {
+    return null;
+  }
+  const crossSellRows = await getDatabase()
+    .prepare("SELECT relatedProductId FROM product_cross_sells WHERE productId = ?")
+    .bind(id)
+    .all<CrossSellRow>();
+  let relatedIds = crossSellRows.results.map((row) => row.relatedProductId);
+  if (relatedIds.length === 0 && product.groupId) {
+    const groupRows = await getDatabase()
+      .prepare("SELECT id FROM products WHERE groupId = ? AND id != ? LIMIT 4")
+      .bind(product.groupId, product.id)
+      .all<{ id: string }>();
+    relatedIds = groupRows.results.map((row) => row.id);
+  }
+
+  const allProducts = await listProducts();
+  const crossSells = relatedIds
+    .map((relatedId) => allProducts.find((item) => item.id === relatedId))
+    .filter((item): item is Product => Boolean(item));
+
+  return { product, crossSells };
+}
+
 export async function saveProduct(product: Product) {
   await ensureTables();
   await getDatabase()
     .prepare(
-      "INSERT INTO products (id, name, category, price, image, accent, description, stock, status, featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, category = excluded.category, price = excluded.price, image = excluded.image, accent = excluded.accent, description = excluded.description, stock = excluded.stock, status = excluded.status, featured = excluded.featured"
+      "INSERT INTO products (id, name, category, groupId, price, image, accent, description, stock, status, featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, category = excluded.category, groupId = excluded.groupId, price = excluded.price, image = excluded.image, accent = excluded.accent, description = excluded.description, stock = excluded.stock, status = excluded.status, featured = excluded.featured"
     )
     .bind(
       product.id,
       product.name,
       product.category,
+      product.groupId || null,
       product.price,
       product.image,
       product.accent,
@@ -189,6 +272,86 @@ export async function saveProduct(product: Product) {
     )
     .run();
   return product;
+}
+
+export async function listCategories() {
+  await ensureTables();
+  const rows = await getDatabase()
+    .prepare("SELECT * FROM categories ORDER BY sortOrder, name")
+    .all<Category>();
+  return rows.results;
+}
+
+export async function saveCategory(category: Category) {
+  await ensureTables();
+  const clean: Category = {
+    id: category.id || slugify(category.name),
+    name: category.name.trim(),
+    description: category.description.trim(),
+    image: category.image.trim() || "/cricket-central-logo.png",
+    sortOrder: Number(category.sortOrder || 99),
+  };
+  await getDatabase()
+    .prepare(
+      "INSERT INTO categories (id, name, description, image, sortOrder) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description, image = excluded.image, sortOrder = excluded.sortOrder"
+    )
+    .bind(clean.id, clean.name, clean.description, clean.image, clean.sortOrder)
+    .run();
+  return clean;
+}
+
+export async function listProductGroups() {
+  await ensureTables();
+  const rows = await getDatabase()
+    .prepare("SELECT * FROM product_groups ORDER BY sortOrder, name")
+    .all<ProductGroup>();
+  return rows.results;
+}
+
+export async function saveProductGroup(group: ProductGroup) {
+  await ensureTables();
+  const clean: ProductGroup = {
+    id: group.id || slugify(group.name),
+    name: group.name.trim(),
+    description: group.description.trim(),
+    image: group.image.trim() || "/cricket-central-logo.png",
+    sortOrder: Number(group.sortOrder || 99),
+  };
+  await getDatabase()
+    .prepare(
+      "INSERT INTO product_groups (id, name, description, image, sortOrder) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description, image = excluded.image, sortOrder = excluded.sortOrder"
+    )
+    .bind(clean.id, clean.name, clean.description, clean.image, clean.sortOrder)
+    .run();
+  return clean;
+}
+
+export async function listCrossSells(productId: string) {
+  await ensureTables();
+  const rows = await getDatabase()
+    .prepare("SELECT relatedProductId FROM product_cross_sells WHERE productId = ?")
+    .bind(productId)
+    .all<CrossSellRow>();
+  return rows.results.map((row) => row.relatedProductId);
+}
+
+export async function saveCrossSells(productId: string, relatedProductIds: string[]) {
+  await ensureTables();
+  const uniqueIds = [...new Set(relatedProductIds.filter((id) => id && id !== productId))];
+  const db = getDatabase();
+  await db.prepare("DELETE FROM product_cross_sells WHERE productId = ?").bind(productId).run();
+  if (uniqueIds.length > 0) {
+    await db.batch(
+      uniqueIds.map((relatedId, index) =>
+        db
+          .prepare(
+            "INSERT INTO product_cross_sells (id, productId, relatedProductId) VALUES (?, ?, ?)"
+          )
+          .bind(`${productId}-${relatedId}-${index}`, productId, relatedId)
+      )
+    );
+  }
+  return uniqueIds;
 }
 
 export async function listCustomers() {

@@ -3,19 +3,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "../components/ProductCard";
 import { StoreHeader } from "../components/StoreHeader";
-import { categories, starterProducts, type Product } from "../data/store";
+import { categories as starterCategoryNames, starterProducts, type Category, type Product, type ProductGroup } from "../data/store";
 
 export default function CollectionPage() {
   const [products, setProducts] = useState<Product[]>(starterProducts);
+  const [categoryNames, setCategoryNames] = useState<string[]>(starterCategoryNames);
+  const [groups, setGroups] = useState<ProductGroup[]>([]);
   const [category, setCategory] = useState("All");
+  const [groupId, setGroupId] = useState("All");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    fetch("/api/products")
-      .then((response) => response.json())
-      .then((data: { products?: Product[] }) => {
+    Promise.all([
+      fetch("/api/products").then((response) => response.json()),
+      fetch("/api/categories").then((response) => response.json()),
+      fetch("/api/product-groups").then((response) => response.json()),
+    ])
+      .then(([data, categoryData, groupData]: [
+        { products?: Product[] },
+        { categories?: Category[] },
+        { groups?: ProductGroup[] }
+      ]) => {
         if (data.products?.length) {
           setProducts(data.products);
+        }
+        if (categoryData.categories?.length) {
+          setCategoryNames(["All", ...categoryData.categories.map((item) => item.name)]);
+        }
+        if (groupData.groups?.length) {
+          setGroups(groupData.groups);
         }
       })
       .catch(() => setProducts(starterProducts));
@@ -25,10 +41,11 @@ export default function CollectionPage() {
     () =>
       products.filter((product) => {
         const matchesCategory = category === "All" || product.category === category;
+        const matchesGroup = groupId === "All" || product.groupId === groupId;
         const matchesQuery = product.name.toLowerCase().includes(query.toLowerCase());
-        return matchesCategory && matchesQuery;
+        return matchesCategory && matchesGroup && matchesQuery;
       }),
-    [category, products, query]
+    [category, groupId, products, query]
   );
 
   return (
@@ -45,7 +62,7 @@ export default function CollectionPage() {
       <section className="section">
         <div className="toolbar">
           <div className="category-tabs" aria-label="Product categories">
-            {categories.map((item) => (
+            {categoryNames.map((item) => (
               <button
                 key={item}
                 className={item === category ? "active" : ""}
@@ -65,6 +82,27 @@ export default function CollectionPage() {
             />
           </label>
         </div>
+        {groups.length > 0 ? (
+          <div className="category-tabs group-tabs" aria-label="Product groups">
+            <button
+              className={groupId === "All" ? "active" : ""}
+              onClick={() => setGroupId("All")}
+              type="button"
+            >
+              All groups
+            </button>
+            {groups.map((group) => (
+              <button
+                className={groupId === group.id ? "active" : ""}
+                key={group.id}
+                onClick={() => setGroupId(group.id)}
+                type="button"
+              >
+                {group.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="product-grid">
           {filtered.map((product) => (
             <ProductCard key={product.id} product={product} />
