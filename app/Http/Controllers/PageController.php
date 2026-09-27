@@ -1,0 +1,1 @@
+<?php namespace App\Http\Controllers; class PageController extends Controller { public function show(string $page){$allowed=['about','contact','privacy','terms','shipping','returns','size-guide','faq','blog','store','brands','gift-cards','bat-finder'];abort_unless(in_array($page,$allowed),404);return view('pages.'.$page);} }

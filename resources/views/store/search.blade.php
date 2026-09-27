@@ -1,0 +1,1 @@
+@extends('layouts.app') @section('content')<section class="section"><h1>Search</h1><p>Results for “{{ $term }}”</p><div class="product-grid four">@foreach($products as $p) @include('store._card',['p'=>$p]) @endforeach</div>{{ $products->links() }}</section>@endsection
