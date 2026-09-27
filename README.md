@@ -1,5 +1,9 @@
 # Cricket Central
 
+## Excel inventory import
+
+In Admin → Inventory, download **Excel template**, fill its Inventory sheet, then choose **Import Excel**. The workbook includes instructions and current category slugs and location columns. Upload an `.xlsx` file up to 5MB with at most 500 products. Preview the changes before confirming. Existing SKUs update, new SKUs create products, and stock values replace current quantities. Prices are in USD. Invalid rows block the whole import; no partial changes are saved. Existing images are preserved. Complete location quantities must sum to Stock. If store data changes after preview, upload again to obtain a fresh preview.
+
 A responsive cricket ecommerce storefront with a Node.js API. The runnable rebuild is in `server/` and `public/index.html`, `public/app.js`, and `public/styles.css`. It requires Node.js 20+ and has no external package dependencies.
 
 ## Run

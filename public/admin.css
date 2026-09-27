@@ -7,3 +7,4 @@
 /* Keep every admin destination reachable on short and narrow screens. */
 .sidebar{overflow-y:auto}.sidebar>nav{flex-shrink:0}.sidebar-bottom{padding-top:24px}.side-link{min-height:42px}
 @media(max-width:760px){.sidebar>nav{width:100%;display:flex;flex-wrap:wrap;gap:5px}.sidebar-bottom{padding-top:0}.sidebar>nav .side-link{flex:1 0 28%;white-space:nowrap}}
+.import-dialog{width:900px}.import-dialog input[type=file]{display:block;margin:12px 0}.import-dialog #import-preview{max-height:45vh;overflow:auto}.heading-actions{flex-wrap:wrap}
