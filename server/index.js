@@ -1,4 +1,5 @@
 import express from 'express';
+import {salePricing} from './pricing.js';
 import {template,parseInventory} from './inventory-excel.js';
 import {normalizeNotifications} from './store-migrations.js';
 import http from 'node:http';
@@ -37,10 +38,16 @@ function productDetails(b,current={}){
  if(catalog().some(p=>p.id!==current.id&&p.sku?.toUpperCase()===sku))fail('This SKU is already assigned to another product.',409);
  const isNew=b.isNew??current.isNew??false;
  if(typeof isNew!=='boolean')fail('New product flag must be true or false.');
+ if(b.discountType!==undefined||current.discountType){
+  const pricing=salePricing({regularPrice:b.regularPrice??current.regularPrice??b.price,onSale:b.onSale??current.onSale??false,discountType:b.discountType??current.discountType,discountValue:b.discountValue??current.discountValue??0});
+  return {...result,sku,isNew,...pricing};
+ }
  const compareAtPrice=b.compareAtPrice??current.compareAtPrice??0;
  if(!Number.isInteger(compareAtPrice)||compareAtPrice<0||compareAtPrice>10000000)fail('Enter a valid original price.');
  if(compareAtPrice>0&&compareAtPrice<=(b.price??current.price))fail('Original price must be higher than selling price, or blank.');
- return {...result,sku,isNew,compareAtPrice};
+ const onSale=b.onSale??current.onSale??(compareAtPrice>(b.price??current.price));
+ if(typeof onSale!=='boolean')fail('Sale flag must be true or false.');
+ return {...result,sku,isNew,onSale,compareAtPrice};
 }
 function cartView(s){const items=s.cart.map(i=>({...catalog().find(p=>p.id===i.id),option:i.option,quantity:i.quantity,key:i.id+'|'+i.option}));const subtotal=items.reduce((n,i)=>n+i.price*i.quantity,0);return {items,subtotal,shipping:items.length&&subtotal<9900?999:0,total:subtotal+(items.length&&subtotal<9900?999:0),count:items.reduce((n,i)=>n+i.quantity,0)};}
 async function body(req){let text='';for await(const chunk of req){text+=chunk;if(text.length>9000000)fail('Request is too large.',413);}try{return JSON.parse(text||'{}');}catch{fail('Invalid JSON.');}}
@@ -65,6 +72,20 @@ app.use(async(req,res)=>{
  const b=mutating?await body(req):{};
  const user=()=>db.users.find(u=>u.id===s.userId);
  if(url.pathname.startsWith('/api/account')){
+ if(url.pathname==='/api/account/saved-items'){
+  if(!user())fail('Please sign in to save your favorite items.',401);
+  if(req.method==='GET')return send(200,{savedItems:publicUser(user()).savedItems});
+  if(req.method==='PUT'||req.method==='DELETE'){
+   if(typeof b.productId!=='string'||!b.productId)fail('Choose a valid product.');
+   if(req.method==='PUT'&&!catalog().some(p=>p.id===b.productId))fail('Product not found.',404);
+   const next=structuredClone(db),account=next.users.find(u=>u.id===s.userId);
+   const ids=new Set(publicUser(account).savedItems);
+   if(req.method==='PUT')ids.add(b.productId);else ids.delete(b.productId);
+   account.savedItems=[...ids];save(next);
+   return send(200,{savedItems:account.savedItems});
+  }
+  return send(405,{error:'Method not allowed.'});
+ }
  if(req.method==='GET'&&url.pathname==='/api/account')return send(200,{user:publicUser(user())});
  if(req.method==='PATCH'&&url.pathname==='/api/account'){
   if(!user())fail('Please sign in to edit your profile.',401);
@@ -180,7 +201,7 @@ app.use(async(req,res)=>{
  if(!Number.isInteger(b.price)||b.price<1||b.price>10000000)fail('Price must be between $0.01 and $100,000.');
  if(typeof b.note!=='string'||!b.note.trim()||b.note.length>200)fail('Add a reason for this adjustment (up to 200 characters).');
  if(b.previousStock!==p.stock||b.previousPrice!==p.price)fail('This product changed since you opened it. Refresh inventory and try again.',409);
- const next=structuredClone(db);next.stock[p.id]=b.stock;next.inventory??={};next.inventory[p.id]={...(next.inventory[p.id]||{}),price:b.price,...productDetails(b,p)};if(b.imageData)next.inventory[p.id].image=saveImage(b.imageData,'product');if(b.locations&&typeof b.locations==='object'){next.locationStock??={};next.locationStock[p.id]=Object.fromEntries(next.locations.map(l=>[l,Math.max(0,Number(b.locations[l])||0)]));}next.activity??=[];next.activity.push({id:token(),product:p.name,sku:p.sku,oldStock:p.stock,stock:b.stock,oldPrice:p.price,price:b.price,note:b.note.trim(),at:new Date().toISOString()});next.activity=next.activity.slice(-500);save(next);
+ const next=structuredClone(db);next.stock[p.id]=b.stock;next.inventory??={};next.inventory[p.id]={...(next.inventory[p.id]||{}),price:b.price,...productDetails(b,p)};if(b.imageData)next.inventory[p.id].image=saveImage(b.imageData,'product');if(b.locations&&typeof b.locations==='object'){next.locationStock??={};next.locationStock[p.id]=Object.fromEntries(next.locations.map(l=>[l,Math.max(0,Number(b.locations[l])||0)]));}next.activity??=[];next.activity.push({id:token(),product:p.name,sku:p.sku,oldStock:p.stock,stock:b.stock,oldPrice:p.price,price:next.inventory[p.id].price,note:b.note.trim(),at:new Date().toISOString()});next.activity=next.activity.slice(-500);save(next);
  return send(200,{product:catalog().find(x=>x.id===p.id)});
  }
  return send(404,{error:'Not found.'});

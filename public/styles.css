@@ -43,3 +43,39 @@
 .product-card .price-row{justify-content:center;gap:10px;margin-top:auto;padding:0 14px}.product-card .price-row strong{font-size:28px;color:#d50719}.product-card .price-row del{color:var(--muted);font-size:14px}
 .card-stock{text-align:center;color:var(--muted);font-size:11px;margin-top:8px}
 .item-badges{position:absolute;top:10px;left:10px;display:flex;gap:6px;z-index:2;pointer-events:none}.item-badge{padding:5px 10px;border-radius:5px;color:#fff;font-weight:600;font-size:13px}.item-badge.new{background:#5271d9}.item-badge.sale{background:#e84760}.detail-image{position:relative}
+:root{--forest:#06224b;--deep:#031a38;--lime:#efbb35;--paper:#faf8f2;--line:#e5dfd0}
+.button.lime,.button.dark{background:#efbb35;color:#06224b;border-color:#efbb35}.button.lime:hover,.button.dark:hover{background:#dba321;color:#06224b}
+.hero h1 em{color:#f4c653}.hero{border-bottom:3px solid #efbb35}.brand-mark>span{color:#b7861d}
+.site-header{height:124px}.site-header .brand-logo{width:105px;height:105px}.footer-intro .brand-logo{width:160px;height:160px}
+.nav{border-bottom-color:#d2a744}.newsletter{background:#06224b;color:#fff}.newsletter button{background:#efbb35;color:#06224b}
+.product-tag{background:#efbb35;color:#06224b}.option-grid input:checked+span{border-color:#b7861d;background:#fff7df;color:#06224b}
+.brand-controls button:hover{background:#fff3cd}.underlined{border-bottom-color:#b7861d}
+@media(max-width:760px){.site-header{height:auto;min-height:100px}.site-header .brand-logo{width:80px;height:80px}}
+
+/* Gold-led brand accents with cricket-ball red highlights. */
+:root{--gold:#efbb35;--ball-red:#c8102e}
+.announcement{background:var(--gold);color:var(--forest)}
+.nav{background:#fff7df;border-bottom:2px solid var(--gold)}
+.nav a:hover,.nav a:focus-visible{color:var(--ball-red)}
+.benefits{background:#fff7df;border-bottom-color:#e6c875}.benefits .icon{color:#936811}
+.category-number{background:var(--gold);color:var(--forest);padding:4px 8px;border-radius:3px}
+.category-card:hover,.product-card:hover{outline:2px solid var(--gold);outline-offset:2px}
+.section-heading .eyebrow,.community-copy .eyebrow,.finder-copy .eyebrow{color:#a30d26}
+.finder-art{background:#f6e5b5}
+.cart-count{background:var(--ball-red);color:#fff}
+.quick-shop{background:var(--gold);color:var(--forest)}
+.item-badge.new{background:var(--gold);color:var(--forest)}.item-badge.sale{background:var(--ball-red);color:#fff}
+.product-card .price-row strong{color:var(--ball-red)}
+.brand-controls button{border-color:#d5ad4b}.brand-controls button:hover{background:var(--gold)}
+.newsletter{background:var(--gold);color:var(--forest);border-top:4px solid var(--ball-red)}
+.newsletter p,.newsletter small,.newsletter .eyebrow{color:var(--forest)}
+.newsletter input{color:var(--forest)}.newsletter input::placeholder{color:#35455b}
+.newsletter form>div{border-color:var(--forest)}
+.newsletter button{background:var(--ball-red);color:#fff;padding:10px 16px}.newsletter button:hover{background:#a30d26}
+.footer-main h3{color:var(--gold)}
+.nav .nav-sale{color:#c8102e;font-weight:700;border-bottom:2px solid #c8102e;padding:5px 0}.filters a[href="/collections/sale"]{color:#c8102e}
+.site-header .brand-logo{width:310px;height:auto;object-fit:contain}.site-header{gap:28px}
+.footer-main .brand{width:280px;max-width:100%;padding:10px;background:#fff;border-radius:6px}.footer-intro .brand-logo{width:260px;height:auto}
+@media(max-width:1000px){.site-header .brand-logo{width:250px}}
+@media(max-width:760px){.site-header .brand-logo{width:220px;height:auto}.site-header{gap:16px}.footer-main .brand{width:240px}}
+@media(max-width:380px){.site-header .brand-logo{width:190px}}

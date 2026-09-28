@@ -43,6 +43,7 @@ export async function parseInventory(encoded,products,categories,locations){
    const allocation=locations.map(l=>get('Location: '+l));let locationStock=null;
    if(allocation.some(Boolean)){if(!allocation.every(integer))throw Error('Enter whole quantities for every location');if(allocation.reduce((n,v)=>n+Number(v),0)!==stock)throw Error('Location quantities must total Stock');locationStock=Object.fromEntries(locations.map((l,i)=>[l,Number(allocation[i])]));}
    else if(old&&Object.values(old.locations||{}).reduce((n,v)=>n+v,0)>stock)throw Error('Existing location stock exceeds the new total; update allocations');
+   if(old?.discountType){if(old.onSale&&price!==old.price)throw Error('Change sale pricing in the product editor before importing a different price');if(!old.onSale)fields.regularPrice=price;}
    if(old?.compareAtPrice&&old.compareAtPrice<=price)throw Error('Price must remain below the original comparison price; edit that price in admin first');
    rows.push({row:r,id:old?.id||'import-'+randomUUID(),action:old?'Update':'Create',fields,stock,locationStock,oldStock:old?.stock||0,oldPrice:old?.price||0});
   }catch(e){errors.push({row:r,message:e.message});}

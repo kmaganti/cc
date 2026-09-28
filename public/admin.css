@@ -8,3 +8,22 @@
 .sidebar{overflow-y:auto}.sidebar>nav{flex-shrink:0}.sidebar-bottom{padding-top:24px}.side-link{min-height:42px}
 @media(max-width:760px){.sidebar>nav{width:100%;display:flex;flex-wrap:wrap;gap:5px}.sidebar-bottom{padding-top:0}.sidebar>nav .side-link{flex:1 0 28%;white-space:nowrap}}
 .import-dialog{width:900px}.import-dialog input[type=file]{display:block;margin:12px 0}.import-dialog #import-preview{max-height:45vh;overflow:auto}.heading-actions{flex-wrap:wrap}
+:root{--green:#06224b;--lime:#efbb35;--paper:#faf8f2;--line:#e5dfd0}
+.primary,.side-link.active{background:#efbb35;color:#06224b}.primary:hover{background:#dba321;color:#06224b}.side-link small{background:#dba321;color:#06224b}
+.sidebar>.brand{background:transparent}.sidebar .brand img{width:150px;height:150px}.login{border-top-color:#efbb35}.login .brand img{width:180px;height:180px}
+.admin-timeline li{border-color:#dba321}.mode{background:#fff3cd;color:#06224b}.stats em{background:#fff3cd;color:#735211}
+@media(max-width:760px){.sidebar .brand img{width:72px;height:72px}}
+
+/* Carry the gold and cricket-ball red identity into administration. */
+.sidebar{border-right:3px solid #efbb35}
+.admin-label,.side-group{color:#efbb35}
+.side-link:hover:not(.active){background:#ffffff12;color:#f5ca61}
+.side-link.active{box-shadow:inset 4px 0 #c8102e}
+.stats article{border-top:3px solid #efbb35;background:#fffdf6}
+.stats article:first-child{border-top-color:#c8102e}
+.login{border-top:5px solid #efbb35;border-bottom:3px solid #c8102e}
+.admin-timeline li{border-color:#efbb35}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:#ad7b16}
+.sidebar>.brand{background:#fff;padding:10px;border-radius:6px}.sidebar .brand img{width:100%;height:auto;object-fit:contain}
+.login .brand img{width:340px;max-width:100%;height:auto;object-fit:contain}
+@media(max-width:760px){.sidebar>.brand{width:220px}.sidebar .brand img{width:100%;height:auto}}

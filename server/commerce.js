@@ -7,7 +7,7 @@ export const statusCode = order => order.statusCode || 'placed';
 export function publicOrder(order) {
   return {number:order.number, created:order.created, statusCode:statusCode(order), status:statuses[statusCode(order)], paymentStatus:order.paymentStatus, total:order.total, subtotal:order.subtotal, shipping:order.shipping, items:order.items, history:(order.history||[{statusCode:'placed',at:order.created}]).map(({statusCode,at})=>({statusCode,at}))};
 }
-export const publicUser = user => user ? {id:user.id, name:user.name, email:user.email, phone:user.phone, address:user.address, city:user.city, state:user.state, zip:user.zip} : null;
+export const publicUser = user => user ? {id:user.id, name:user.name, email:user.email, phone:user.phone, address:user.address, city:user.city, state:user.state, zip:user.zip, savedItems:Array.isArray(user.savedItems)?user.savedItems:[]} : null;
 export async function passwordHash(password, salt=randomBytes(16).toString('hex')) {
   return {salt, hash:(await scrypt(password,salt,64)).toString('hex')};
 }
