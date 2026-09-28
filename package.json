@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "db:check": "node scripts/database-check.js",
+    "email:check": "node scripts/email-check.js",
+    "email:test": "node scripts/email-check.js --send",
     "dev": "node server/index.js",
     "start": "node server/index.js",
     "test": "node --test tests/*.test.js",

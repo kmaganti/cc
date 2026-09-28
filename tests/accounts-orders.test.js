@@ -11,7 +11,7 @@ let base;
 before(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${server.address().port}`;});
 after(async()=>{await new Promise(r=>server.close(r));rmSync(process.env.DATA_DIR,{recursive:true,force:true});});
 async function client(){const r=await fetch(base+'/api/store'),state=await r.json(),cookie=r.headers.get('set-cookie').split(';')[0];return {async request(path,method='GET',body){const r=await fetch(base+'/api/'+path,{method,headers:{cookie,'Content-Type':'application/json','X-CSRF-Token':state.csrf},body:body?JSON.stringify(body):undefined});return {status:r.status,data:await r.json()};}};}
-const address={email:'guest@example.com',firstName:'Sample',lastName:'Player',address:'1 Test St',city:'Columbus',state:'OH',zip:'43215'};
+const address={email:'guest@example.com',phone:'6145550123',firstName:'Sample',lastName:'Player',address:'1 Test St',city:'Columbus',state:'OH',zip:'43215'};
 async function order(c,extra={}){assert.equal((await c.request('cart','POST',{id:'sg-test-ball',option:'Standard',quantity:1})).status,200);const input={...address,requestId:randomUUID(),...extra};return {result:await c.request('orders','POST',input),input};}
 const read=()=>JSON.parse(readFileSync(join(process.env.DATA_DIR,'store.json'),'utf8'));
 test('accounts use hashed passwords, isolate order lists, and survive a fresh session',async()=>{

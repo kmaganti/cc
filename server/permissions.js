@@ -1,0 +1,3 @@
+export const roles={owner:['inventory','orders','payments','reports','marketing','staff','monitoring'],manager:['inventory','orders','payments','reports','marketing','monitoring'],inventory:['inventory'],fulfillment:['orders'],viewer:['reports']};
+export const staffPublic=s=>({id:s.id,username:s.username,name:s.name,role:s.role,active:s.active,permissions:roles[s.role]||[]});
+export function permissionFor(path){if(path.includes('/staff'))return 'staff';if(path.includes('/payments'))return 'payments';if(path.includes('/marketing'))return 'marketing';if(path.includes('/monitoring')||path.includes('/email-test'))return 'monitoring';if(path.includes('/reports'))return 'reports';if(path.includes('/orders')||path.includes('/notifications'))return 'orders';return 'inventory';}

@@ -1,0 +1,70 @@
+import {test,before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {randomUUID} from 'node:crypto';
+process.env.NODE_ENV='test';process.env.PUBLIC_BASE_URL='http://localhost:3000';process.env.DATA_DIR=mkdtempSync(join(tmpdir(),'cc-operations-'));
+const {server}=await import('../server/index.js');let base;
+before(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${server.address().port}`;admin=await client();assert.equal((await admin.request('admin/login','POST',{username:'admin',password:'Cricket@2026'})).status,200);});
+after(async()=>{await new Promise(r=>server.close(r));rmSync(process.env.DATA_DIR,{recursive:true,force:true});});
+const db=()=>JSON.parse(readFileSync(join(process.env.DATA_DIR,'store.json'),'utf8'));
+async function client(){const r=await fetch(base+'/api/store'),state=await r.json(),cookie=r.headers.get('set-cookie').split(';')[0];return {state,async request(path,method='GET',body){const r=await fetch(base+'/api/'+path,{method,headers:{cookie,'content-type':'application/json','x-csrf-token':state.csrf},body:body?JSON.stringify(body):undefined});return {status:r.status,data:await r.json()};}};}
+const address={firstName:'Test',lastName:'Player',email:'test@example.com',phone:'6145550123',address:'1 Main St',city:'Columbus',state:'OH',zip:'43215'};
+let admin;
+test('custom categories publish, product deletion stays deleted and stale cart recovers',async()=>{
+ assert.equal((await admin.request('admin/categories','POST',{name:'Test gear',slug:'test-gear'})).status,201);
+ assert.ok((await admin.request('store')).data.categories.some(c=>c.slug==='test-gear'));
+ const guest=await client(),p=guest.state.products[0];await guest.request('cart','POST',{id:p.id,option:p.options[0],quantity:1});
+ assert.equal((await admin.request('admin/inventory','DELETE',{id:p.id})).status,200);
+ const current=(await guest.request('store')).data;assert.ok(!current.products.some(x=>x.id===p.id));assert.equal(current.cart.count,0);
+});
+test('location stock validates, reserves and restores; order emails target team and customer',async()=>{
+ const guest=await client(),p=guest.state.products.find(p=>p.id==='sg-test-ball');
+ const edit={id:p.id,stock:5,price:p.price,previousStock:p.stock,previousPrice:p.price,note:'Allocate stock',locations:{'22Yards':3,'Rangoli':2}};
+ assert.equal((await admin.request('admin/inventory','PATCH',{...edit,locations:{'22Yards':6}})).status,400);
+ assert.equal((await admin.request('admin/inventory','PATCH',edit)).status,200);
+ await guest.request('cart','POST',{id:p.id,option:p.options[0],quantity:4});
+ assert.equal((await guest.request('orders','POST',{...address,phone:'',requestId:randomUUID()})).status,400);
+ const order=await guest.request('orders','POST',{...address,requestId:randomUUID()});assert.equal(order.status,201);
+ assert.equal(db().locationStock[p.id]['22Yards'],0);assert.equal(db().locationStock[p.id].Rangoli,1);
+ assert.equal(db().orders[0].customer.phone,address.phone);
+ assert.deepEqual(db().notifications.filter(n=>n.orderNumber===order.data.number).map(n=>n.audience),['team','customer']);
+ assert.equal((await admin.request('admin/locations/Rangoli','DELETE',{})).status,400);
+ assert.equal((await admin.request('admin/orders','PATCH',{number:order.data.number,previousStatus:'placed',statusCode:'cancelled'})).status,200);
+ assert.equal(db().locationStock[p.id]['22Yards'],3);assert.equal(db().locationStock[p.id].Rangoli,2);
+});
+test('staff permissions enforced by API and access revoked when disabled',async()=>{
+ assert.equal((await admin.request('admin/staff','POST',{username:'stock-team',name:'Stock Team',password:'LongStaffPassword!',role:'inventory'})).status,200);
+ const staff=await client();assert.equal((await staff.request('admin/login','POST',{username:'stock-team',password:'LongStaffPassword!'})).status,200);
+ assert.equal((await staff.request('admin/inventory')).status,200);assert.equal((await staff.request('admin/orders')).status,403);assert.equal((await staff.request('admin/staff')).status,403);
+ const id=(await admin.request('admin/staff')).data.staff.find(s=>s.username==='stock-team').id;
+ await admin.request('admin/staff','PATCH',{id,role:'inventory',active:false});assert.equal((await staff.request('admin/inventory')).status,401);
+});
+test('password recovery is one-time, hashed and invalidates signed-in sessions',async()=>{
+ const c=await client();await c.request('account/register','POST',{...address,name:'Test Player',password:'OldPassword123!'});
+ assert.equal((await c.request('account/forgot-password','POST',{email:address.email})).status,200);
+ const job=db().notifications.find(n=>n.purpose==='recovery'),token=new URL(job.link).searchParams.get('token');assert.notEqual(db().users[0].recovery.hash,token);
+ assert.equal((await c.request('account/reset-password','POST',{token,password:'NewPassword123!'})).status,200);
+ assert.equal((await c.request('account')).data.user,null);
+ assert.equal((await c.request('account/reset-password','POST',{token,password:'AnotherPassword!'})).status,400);
+ assert.equal((await c.request('account/login','POST',{email:address.email,password:'OldPassword123!'})).status,401);
+ assert.equal((await c.request('account/login','POST',{email:address.email,password:'NewPassword123!'})).status,200);
+});
+test('promotions, manual payment, refund limits, fulfillment and payment reporting',async()=>{
+ const code='TEST15';assert.equal((await admin.request('admin/marketing','POST',{code,type:'fixed',value:1500,maxUses:1,endsAt:new Date(Date.now()+86400000).toISOString()})).status,200);
+ const c=await client(),p=c.state.products.find(p=>p.id==='sg-test-ball');await c.request('cart','POST',{id:p.id,option:p.options[0],quantity:1});
+ assert.equal((await c.request('cart/promotion','POST',{code})).data.discount,1500);
+ const placed=await c.request('orders','POST',{...address,requestId:randomUUID()});assert.equal(placed.status,201);const number=placed.data.number,o=db().orders.find(o=>o.number===number);
+ assert.equal(db().promotions[0].uses,1);assert.equal((await c.request('cart/promotion','POST',{code})).status,400);
+ const payment={number,type:'received',amount:o.total,reference:'Cash receipt 1',requestId:randomUUID()};
+ assert.equal((await admin.request('payments','POST',payment)).status,404);
+ assert.equal((await admin.request('admin/payments','POST',payment)).status,200);assert.equal((await admin.request('admin/payments','POST',payment)).status,200);
+ assert.equal(db().orders.find(o=>o.number===number).payments.length,1);
+ assert.equal((await admin.request('admin/payments','POST',{...payment,type:'refunded',amount:o.total+1,requestId:randomUUID()})).status,400);
+ assert.equal((await admin.request('admin/orders/manage','PATCH',{number,carrier:'USPS',trackingNumber:'TRACK123',note:'Customer contacted.'})).status,200);
+ assert.equal((await c.request('track','POST',{number,email:address.email})).data.fulfillment.trackingNumber,'TRACK123');
+ const report=await admin.request('admin/reports');assert.equal(report.data.collected,o.total);
+ assert.equal((await admin.request('admin/monitoring')).status,200);
+ assert.equal((await fetch(base+'/health')).status,200);
+});
