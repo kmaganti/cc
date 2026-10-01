@@ -7,7 +7,8 @@ Application root: . (package.json is at the ZIP root)
 Install: npm ci
 Build: npm run build (or select the build script)
 Start: npm start
-Entry file: server/index.js
+Startup file: hostinger-start.cjs
+Do not select `server/index.js` as the startup file; LiteSpeed loads that file with `require()` and cannot load its top-level ESM await.
 Output directory: . if required; this is a server app, not a static public folder.
 
 Environment: NODE_ENV=production, HOST=0.0.0.0, ADMIN_USERNAME=admin,

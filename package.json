@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "db:check": "node scripts/database-check.js",
+    "db:migrate:relational": "node scripts/migrate-relational.js",
     "email:check": "node scripts/email-check.js",
     "email:test": "node scripts/email-check.js --send",
     "dev": "node server/index.js",
-    "start": "node server/index.js",
+    "start": "node server.cjs",
     "test": "node --test tests/*.test.js",
     "check": "node --check server/index.js && node --check public/app.js && node --check public/admin.js && node --check server/commerce.js",
     "build": "npm run check"
@@ -16,7 +17,7 @@
   "engines": {
     "node": ">=20"
   },
-  "main": "server/index.js",
+  "main": "server.cjs",
   "dependencies": {
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
