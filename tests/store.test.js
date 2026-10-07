@@ -11,6 +11,15 @@ after(async()=>{await new Promise(r=>server.close(r));rmSync(process.env.DATA_DI
 async function client(){const r=await fetch(base+'/api/store');const state=await r.json();const cookie=r.headers.get('set-cookie').split(';')[0];return {state,cookie,async request(path,method='GET',body,csrf=state.csrf){const res=await fetch(base+'/api/'+path,{method,headers:{cookie,'content-type':'application/json','x-csrf-token':csrf},body:body?JSON.stringify(body):undefined});return {status:res.status,data:await res.json()};}};}
 const add={id:'ss-ton-reserve',option:'Short handle',quantity:1};
 
+test('product gallery modules are served as JavaScript',async()=>{
+ for(const path of ['/product-gallery.js','/admin-product-images.js']){
+  const response=await fetch(base+path);
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('content-type'),/javascript/);
+  assert.match(await response.text(),/export function/);
+ }
+});
+
 const customer={email:'test@example.com',phone:'6145550123',firstName:'Test',lastName:'Player',address:'1 Example Street',city:'Testville',state:'OH',zip:'43215',requestId:'12345678-1234-4321-1234-123456789abc'};
 test('catalog, asset serving and private filesystem protection',async()=>{const c=await client();assert.equal(c.state.products.length,21);assert.equal(c.state.categories.length,10);const css=await fetch(base+'/styles.css');assert.match(css.headers.get('content-type'),/text\/css/);const env=await fetch(base+'/.env');assert.doesNotMatch(await env.text(),/DB_PASSWORD/);const asset=await fetch(base+'/assets/bat-ss.jpg');assert.equal(asset.status,200);});
 test('CSRF, product options and quantities are checked on the server',async()=>{const c=await client();assert.equal((await c.request('cart','POST',add,'wrong')).status,403);assert.equal((await c.request('cart','POST',{...add,option:'Fake'})).status,400);assert.equal((await c.request('cart','POST',{...add,quantity:-1})).status,400);assert.equal((await c.request('cart','POST',{...add,quantity:1.2})).status,400);assert.equal((await c.request('cart','POST',{...add,quantity:26})).status,400);});

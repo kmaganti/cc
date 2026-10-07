@@ -35,3 +35,26 @@ h1{font-size:clamp(30px,4vw,40px);letter-spacing:-.025em}h2{font-size:26px;line-
 input,select,textarea,button,.button{font-family:Inter,Arial,sans-serif;font-size:16px}
 .stats strong{font-variant-numeric:tabular-nums}.sidebar{overflow-y:auto}.side-link{flex-shrink:0}
 .login p,.notification-config p{font-size:16px}.table-wrap{overflow-x:auto}
+
+.bulk-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 22px;border-top:1px solid var(--line);background:#fffdf6}
+.bulk-left,.bulk-actions{display:flex;align-items:center;gap:12px;font-size:14px;color:#64748b}
+.bulk-left input,.select-cell input{width:18px;height:18px;margin:0;accent-color:#efbb35}
+.select-cell{width:44px;text-align:center}
+.select-cell:first-child{padding-left:16px}
+.danger{background:#c8102e;color:#fff;padding:11px 16px;font-size:12px;font-weight:600;border-radius:4px;min-height:38px;white-space:nowrap}
+.danger:hover{background:#a20c25;color:#fff}
+tr.selected-row{background:#fff6d8}
+tr.selected-row:hover{background:#fff0bd}
+.confirm-dialog p{color:#64748b;line-height:1.6;margin:0 0 12px}
+.confirm-detail{background:#fff6d8;border:1px solid #f0d87a;border-radius:5px;color:#5d4511!important;padding:12px}
+@media(max-width:760px){.bulk-bar{align-items:flex-start;flex-direction:column;padding:13px 15px}.bulk-actions{width:100%;justify-content:space-between;flex-wrap:wrap}.bulk-actions button{flex:1}}
+.product-image-editor{min-width:0;margin:20px 0;padding:12px;border:1px solid #dcdfe4;border-radius:4px}
+.product-image-editor legend{padding:0 6px;font-weight:600}
+.product-image-previews{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.product-image-preview{min-width:0;border:1px solid #dcdfe4;border-radius:4px;overflow:hidden}
+.product-image-preview>img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#fff}
+.product-image-preview>div{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:5px;min-height:38px}
+.product-image-preview button{font-size:11px;padding:5px;border:1px solid #dcdfe4;border-radius:3px;background:#fff;cursor:pointer}
+.product-image-preview button[data-image-remove]{width:28px;height:28px;padding:0;font-size:20px;flex-shrink:0}
+.product-image-preview span{font-size:11px;font-weight:600;padding:5px}
+.product-image-editor .image-upload-error:empty{display:none}

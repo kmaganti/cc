@@ -12,6 +12,7 @@ import {resolve,extname,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
 import {products,categories} from './catalog.js';
+import {saveProductImages} from './product-images.js';
 import {statuses,transitions,statusCode,publicOrder,publicUser,passwordHash,verifyPassword,queueNotifications,notificationConfig,sendNotification} from './commerce.js';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 if(process.env.NODE_ENV!=='test'&&existsSync(resolve(root,'.env.local')))process.loadEnvFile(resolve(root,'.env.local'));
@@ -27,11 +28,32 @@ async function transaction(fn){return storage.run(async context=>{if(context){db
 if(storage.kind==='postgres')for(const name of readdirSync(uploadDir)){if(/\.(png|jpg|jpeg|webp)$/i.test(name))await storage.putUpload(name,name.endsWith('.webp')?'image/webp':name.endsWith('.png')?'image/png':'image/jpeg',readFileSync(resolve(uploadDir,name)));}
 const token=()=>randomBytes(24).toString('hex');
 function fail(message,status=400){throw Object.assign(new Error(message),{status});}
-function categoryList(){return db.categories??categories;}
+function slugify(value){return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+function parseSubcategories(value,current=[]){const fallback=Array.isArray(current)?current:[];const rows=Array.isArray(value)?value:typeof value==='string'?value.split(/\n+/):fallback;const seen=new Set();return rows.map(row=>{const source=typeof row==='string'?row:row?.name||'',parts=String(source).split('|'),name=(parts[1]||parts[0]).trim(),slug=typeof row==='object'&&row?.slug?slugify(row.slug):slugify(parts[1]?parts[0]:name);if(!name)return null;if(!slug||name.length>80)fail('Subcategories need names up to 80 characters.');if(seen.has(slug))fail('Subcategory slugs must be unique within a category.');seen.add(slug);return {slug,name};}).filter(Boolean);}
+const categoryImages={
+ bats:{original:'bat-ss.jpg',image:'category-cricket-bats.png'},
+ gloves:{original:'gloves-sg.jpg',image:'category-batting-gloves.png'},
+ pads:{original:'pads-mrf.jpg',image:'category-batting-pads.png'},
+ protection:{original:'helmet-shrey.jpg',image:'category-protection.png'},
+ shoes:{original:'shoes-asics.jpg',image:'category-shoes.png'},
+ bags:{original:'bag-dsc.jpg',image:'category-bags.png'},
+ balls:{original:'ball.jpg',image:'category-balls.png'},
+ apparel:{original:'apparel.jpg',image:'category-apparel.png'},
+ training:{original:'training.jpg',image:'category-training.png'},
+ juniors:{original:'junior.jpg',image:'category-juniors.png'},
+ 'cricket-kits':{original:'uploads/category-55a47e795dac8c9b9dfbd599d8d2bb27172d5b4fd53b90fe.webp',image:'category-cricket-kits.png'}
+};
+function categoryList(){return (db.categories??categories).map((c,i)=>({...c,image:categoryImages[c.slug]?.original===c.image?categoryImages[c.slug].image:c.image,displayOrder:Number.isInteger(c.displayOrder)?c.displayOrder:i+1,subcategories:parseSubcategories(c.subcategories||[],[])})).sort((a,b)=>a.displayOrder-b.displayOrder);}
+function categoryDisplayOrder(value,fallback){if(value===undefined)return fallback;if(!Number.isSafeInteger(value)||value<0||value>1000000)fail('Display order must be a whole number from 0 to 1000000.');return value;}
+function productSubcategory(category,subcategory,current=''){const value=subcategory===undefined?current:String(subcategory||'').trim();if(!value)return '';const cat=categoryList().find(c=>c.slug===category);if(!cat?.subcategories?.some(s=>s.slug===value))fail('Choose an existing subcategory for this category.');return value;}
 function inventoryFingerprint(){return JSON.stringify({inventory:db.inventory,stock:db.stock,deleted:db.deletedProducts,categories:db.categories,locations:db.locations,locationStock:db.locationStock});}
 function catalog(){const custom=Object.entries(db.inventory||{}).filter(([id])=>!products.some(p=>p.id===id)).map(([id,p])=>({id,slug:id,options:['Standard'],featured:false,...p,stock:db.stock[id]??0}));return [...products,...custom].filter(p=>!db.deletedProducts?.includes(p.id)).map(p=>({...p,...db.inventory?.[p.id],stock:db.stock[p.id]??p.stock,locations:db.locationStock[p.id]??{}}));}
 function productDetails(b,current={}){
  const result={};
+ for(const key of ['purchaseCost','purchaseShipping','importDuty']){const value=b[key]===undefined?(current[key]??null):b[key];if(value!==null&&(!Number.isSafeInteger(value)||value<0||value>100000000))fail('Purchase costs must be non-negative USD amounts up to $1,000,000.');result[key]=value;}
+ const date=b.purchaseDate===undefined?(current.purchaseDate||''):b.purchaseDate;
+ if(typeof date!=='string'||(date&&(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)))fail('Enter a valid purchase date.');result.purchaseDate=date;
+ const supplier=b.supplier===undefined?(current.supplier||''):b.supplier;if(typeof supplier!=='string'||supplier.length>200)fail('Supplier must be at most 200 characters.');result.supplier=supplier.trim();
  for(const key of ['overview','keyFeatures','additionalInformation']){
   const value=b[key]??current[key]??(key==='overview'?current.description||b.description||'':'');
   if(typeof value!=='string'||value.length>6000)fail('Product sections must be text of at most 6,000 characters.');
@@ -56,9 +78,10 @@ function productDetails(b,current={}){
  if(typeof onSale!=='boolean')fail('Sale flag must be true or false.');
  return {...result,sku,isNew,onSale,compareAtPrice};
 }
+function storefrontProduct(p){const {purchaseDate,purchaseCost,purchaseShipping,importDuty,supplier,...publicFields}=p;return publicFields;}
 function cartView(s){
  s.cart=s.cart.filter(i=>catalog().some(p=>p.id===i.id));
- const items=s.cart.map(i=>({...catalog().find(p=>p.id===i.id),option:i.option,quantity:i.quantity,key:i.id+'|'+i.option}));
+ const items=s.cart.map(i=>({...storefrontProduct(catalog().find(p=>p.id===i.id)),option:i.option,quantity:i.quantity,key:i.id+'|'+i.option}));
  const subtotal=items.reduce((n,i)=>n+i.price*i.quantity,0);
  const promo=db.promotions?.find(p=>p.code===s.promotion&&p.active&&p.uses<p.maxUses&&Date.parse(p.endsAt)>Date.now());
  const discount=promo?Math.min(subtotal, promo.type==='percent'?Math.round(subtotal*promo.value/100):promo.value):0;
@@ -195,13 +218,13 @@ async function handleRequest(req,res){
  }
  if(url.pathname==='/api/admin/categories'&&req.method==='POST'){
   if(typeof b.name!=='string'||!b.name.trim()||b.name.length>80)fail('Enter a category name.');
-  const slug=(b.slug||b.name).toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); if(!slug||['all','sale'].includes(slug))fail('Choose a category slug other than all or sale.');
+  const slug=slugify(b.slug||b.name); if(!slug||['all','sale'].includes(slug))fail('Choose a category slug other than all or sale.');
   if(categoryList().some(c=>c.slug===slug))fail('That category already exists.',409);
-  const next=structuredClone(db);next.categories.push({slug,name:b.name.trim(),image:await saveImage(b.imageData,'category')||(typeof b.image==='string'&&b.image.trim()?b.image.trim():'training.jpg')});save(next);return send(201,{categories:categoryList()});
+  const next=structuredClone(db);next.categories.push({slug,displayOrder:categoryDisplayOrder(b.displayOrder,Math.max(0,...categoryList().map(c=>c.displayOrder))+1),name:b.name.trim(),subcategories:parseSubcategories(b.subcategories,''),image:await saveImage(b.imageData,'category')||(typeof b.image==='string'&&b.image.trim()?b.image.trim():'training.jpg')});save(next);return send(201,{categories:categoryList()});
  }
  if(url.pathname.startsWith('/api/admin/categories/')&&req.method==='PATCH'){
   const slug=url.pathname.split('/').pop(), old=categoryList().find(c=>c.slug===slug);if(!old)fail('Category not found.',404);
-  if(typeof b.name!=='string'||!b.name.trim())fail('Enter a category name.'); const next=structuredClone(db),item=next.categories.find(c=>c.slug===slug);Object.assign(item,{name:b.name.trim(),image:await saveImage(b.imageData,'category')||(typeof b.image==='string'&&b.image.trim()?b.image.trim():item.image)});save(next);return send(200,{category:item});
+  if(typeof b.name!=='string'||!b.name.trim())fail('Enter a category name.'); const next=structuredClone(db),item=next.categories.find(c=>c.slug===slug);Object.assign(item,{displayOrder:categoryDisplayOrder(b.displayOrder,old.displayOrder),name:b.name.trim(),subcategories:parseSubcategories(b.subcategories,old.subcategories||[]),image:await saveImage(b.imageData,'category')||(typeof b.image==='string'&&b.image.trim()?b.image.trim():item.image)});save(next);return send(200,{category:item});
  }
  if(url.pathname.startsWith('/api/admin/categories/')&&req.method==='DELETE'){
   const slug=url.pathname.split('/').pop();if(catalog().some(p=>p.category===slug))fail('Move products out of this category before deleting it.'); const next=structuredClone(db);next.categories=next.categories.filter(c=>c.slug!==slug);if(next.categories.length===categoryList().length)fail('Category not found.',404);save(next);return send(200,{categories:categoryList()});
@@ -215,11 +238,18 @@ async function handleRequest(req,res){
  if(url.pathname==='/api/admin/inventory'&&req.method==='POST'){
   for(const key of ['name','brand','category','description'])if(typeof b[key]!=='string'||!b[key].trim())fail('Complete every product field.');
   if(categoryList().every(c=>c.slug!==b.category))fail('Choose an existing category.'); if(!Number.isInteger(b.price)||b.price<1)fail('Price must be valid.');
-  const id=(b.id||b.name).toLowerCase().trim().replace(/[^a-z0-9]+/g,'-');if(catalog().some(p=>p.id===id))fail('A product with that name already exists.',409);
-  const next=structuredClone(db);next.inventory??={};next.inventory[id]={slug:id,name:b.name.trim(),brand:b.brand.trim(),category:b.category.trim(),description:b.description.trim(),price:b.price,image:await saveImage(b.imageData,'product')||b.image||categoryList().find(c=>c.slug===b.category)?.image||'training.jpg',images:Array.isArray(b.imageDataList)?(await Promise.all(b.imageDataList.map(x=>saveImage(x,'product')))).filter(Boolean):[],...productDetails(b),options:Array.isArray(b.options)&&b.options.length?b.options:['Standard']};next.stock[id]=Number.isInteger(b.stock)&&b.stock>=0?b.stock:0;next.locationStock[id]=allocations(b.locations||{},next.locations,next.stock[id]);save(next);return send(201,{product:catalog().find(p=>p.id===id)});
+  const id=slugify(b.id||b.name);if(catalog().some(p=>p.id===id))fail('A product with that name already exists.',409);
+  const gallery=await saveProductImages(b,null,saveImage,fail);
+  const category=b.category.trim();const next=structuredClone(db);next.inventory??={};next.inventory[id]={slug:id,name:b.name.trim(),brand:b.brand.trim(),category,subcategory:productSubcategory(category,b.subcategory),description:b.description.trim(),price:b.price,image:gallery?.image||await saveImage(b.imageData,'product')||b.image||categoryList().find(c=>c.slug===b.category)?.image||'training.jpg',images:gallery?.images||[],...productDetails(b),options:Array.isArray(b.options)&&b.options.length?b.options:['Standard']};next.stock[id]=Number.isInteger(b.stock)&&b.stock>=0?b.stock:0;next.locationStock[id]=allocations(b.locations||{},next.locations,next.stock[id]);save(next);return send(201,{product:catalog().find(p=>p.id===id)});
  }
  if(url.pathname==='/api/admin/inventory'&&req.method==='DELETE'){
-  const next=structuredClone(db);if(!catalog().some(p=>p.id===b.id))fail('Product not found.',404);next.deletedProducts=[...new Set([...(next.deletedProducts||[]),b.id])];save(next);return send(200,{ok:true});
+  const ids=Array.isArray(b.ids)?b.ids:(b.id?[b.id]:[]);
+  if(!ids.length)fail('Choose at least one item to delete.');
+  if(ids.length>500)fail('Delete 500 items at a time or fewer.');
+  if(ids.some(id=>typeof id!=='string'||!id.trim()))fail('Choose valid items.');
+  const available=new Set(catalog().map(p=>p.id)),missing=ids.filter(id=>!available.has(id));
+  if(missing.length)fail(`${missing.length} item${missing.length===1?'':'s'} not found.`,404);
+  const next=structuredClone(db);next.deletedProducts=[...new Set([...(next.deletedProducts||[]),...ids])];save(next);return send(200,{ok:true,count:ids.length});
  }
  if(url.pathname==='/api/admin/inventory'&&req.method==='PATCH'){
  const p=catalog().find(p=>p.id===b.id);if(!p)fail('Product not found.',404);
@@ -227,13 +257,14 @@ async function handleRequest(req,res){
  if(!Number.isInteger(b.price)||b.price<1||b.price>10000000)fail('Price must be between $0.01 and $100,000.');
  if(typeof b.note!=='string'||!b.note.trim()||b.note.length>200)fail('Add a reason for this adjustment (up to 200 characters).');
  if(b.previousStock!==p.stock||b.previousPrice!==p.price)fail('This product changed since you opened it. Refresh inventory and try again.',409);
- const next=structuredClone(db);next.stock[p.id]=b.stock;next.inventory??={};next.inventory[p.id]={...(next.inventory[p.id]||{}),price:b.price,...productDetails(b,p)};if(b.imageData)next.inventory[p.id].image=await saveImage(b.imageData,'product');next.locationStock??={};next.locationStock[p.id]=allocations(b.locations??next.locationStock[p.id]??{},next.locations,b.stock);next.activity??=[];next.activity.push({id:token(),product:p.name,sku:p.sku,oldStock:p.stock,stock:b.stock,oldPrice:p.price,price:next.inventory[p.id].price,note:b.note.trim(),at:new Date().toISOString()});next.activity=next.activity.slice(-500);save(next);
+ const gallery=await saveProductImages(b,p,saveImage,fail);
+ const next=structuredClone(db);next.stock[p.id]=b.stock;next.inventory??={};next.inventory[p.id]={...(next.inventory[p.id]||{}),price:b.price,subcategory:productSubcategory(p.category,b.subcategory,p.subcategory||''),...productDetails(b,p)};if(gallery)Object.assign(next.inventory[p.id],gallery);else if(b.imageData)next.inventory[p.id].image=await saveImage(b.imageData,'product');next.locationStock??={};next.locationStock[p.id]=allocations(b.locations??next.locationStock[p.id]??{},next.locations,b.stock);next.activity??=[];next.activity.push({id:token(),product:p.name,sku:p.sku,oldStock:p.stock,stock:b.stock,oldPrice:p.price,price:next.inventory[p.id].price,note:b.note.trim(),at:new Date().toISOString()});next.activity=next.activity.slice(-500);save(next);
  return send(200,{product:catalog().find(x=>x.id===p.id)});
  }
  return send(404,{error:'Not found.'});
  }
 
- if(req.method==='GET'&&url.pathname==='/api/store')return send(200,{products:catalog(),categories:categoryList(),cart:cartView(s),csrf:s.csrf,mode:'manual',user:publicUser(user())});
+ if(req.method==='GET'&&url.pathname==='/api/store')return send(200,{products:catalog().map(storefrontProduct),categories:categoryList(),cart:cartView(s),csrf:s.csrf,mode:'manual',user:publicUser(user())});
  if(url.pathname==='/api/cart/promotion'&&req.method==='POST'){const code=String(b.code||'').trim().toUpperCase();const promo=db.promotions?.find(p=>p.code===code&&p.active&&p.uses<p.maxUses&&Date.parse(p.endsAt)>Date.now());if(code&&!promo)fail('This offer is invalid or expired.');s.promotion=code;return send(200,cartView(s));}
  if(url.pathname==='/api/cart'&&req.method==='POST'){
  const p=catalog().find(p=>p.id===b.id);if(!p)fail('Product not found.',404);
@@ -286,7 +317,7 @@ async function handleRequest(req,res){
  if(pathname==='/admin/login'&&authorized){res.writeHead(302,{Location:'/admin'});return res.end();}
  }
 
- const allowed=pathname.startsWith('/assets/')||['/styles.css','/app.js','/favicon.svg','/admin.css','/admin.js','/admin-operations.js','/inventory-import.js'].includes(pathname);
+ const allowed=pathname.startsWith('/assets/')||['/styles.css','/app.js','/product-gallery.js','/favicon.svg','/admin.css','/admin.js','/admin-product-images.js','/admin-operations.js','/inventory-import.js'].includes(pathname);
  const file=allowed?resolve(root,'public','.'+pathname):resolve(root,adminPath?'public/admin.html':'public/index.html');
  if(!file.startsWith(resolve(root,'public')+'/'))return send(404,{error:'Not found.'});
  const content=readFileSync(file),mime={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml'}[extname(file)]||'application/octet-stream';
