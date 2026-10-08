@@ -11,7 +11,7 @@
     "dev": "node server/index.js",
     "start": "node server.cjs",
     "test": "node --test tests/*.test.js",
-    "check": "node --check server/index.js && node --check public/app.js && node --check public/admin.js && node --check public/product-gallery.js && node --check public/admin-product-images.js && node --check server/product-images.js && node --check server/commerce.js",
+    "check": "node --check server/index.js && node --check public/app.js && node --check public/admin.js && node --check public/product-gallery.js && node --check public/admin-product-images.js && node --check public/category-tree.js && node --check public/category-navigation.js && node --check public/admin-category-tree.js && node --check server/product-images.js && node --check server/commerce.js",
     "build": "npm run check"
   },
   "engines": {
